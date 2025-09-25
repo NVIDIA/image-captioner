@@ -103,9 +103,10 @@ Users can also search for specific words/phrases and replace them with the desir
 1. [Kosmos-2](https://build.nvidia.com/microsoft/microsoft-kosmos-2)
 2. [Llama 3.2 Vision 90B](https://build.nvidia.com/meta/llama-3.2-90b-vision-instruct)
 3. [NVIDIA Vila](https://build.nvidia.com/nvidia/vila)
+4. [Llama-3.1 Nemotron Nano VL 8B](https://build.nvidia.com/nvidia/llama-3.1-nemotron-nano-vl-8b-v1)
 
 Advanced parameters:
-- max_token, default = 1024
+- max_tokens, default = 1024
 - temperature, default = 0.20
 - top_p, default = 0.20
 
