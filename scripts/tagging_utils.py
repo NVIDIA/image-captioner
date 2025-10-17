@@ -34,7 +34,7 @@ model_host_mapping = {
     "Gemma 3 27B": "Hugging Face",  
     "Llama-3.2 90B Vision Instruct": "NVIDIA NIM", 
     "NVIDIA Vila": "NVIDIA NIM",
-    "Llama Nemotron Nano VL": "NVIDIA NIM"
+    "Llama-3.1 Nemotron Nano VL 8b": "NVIDIA NIM"
 }
 
 # Global Variables
@@ -305,7 +305,7 @@ def gen_tag_from_model(model: str, host: str, path: str, api_key: str,
             chat = True
             model_name = 'nvidia/vila'
 
-        elif model == "Llama Nemotron Nano VL":
+        elif model == "Llama-3.1 Nemotron Nano VL 8b":
             model_url = "https://integrate.api.nvidia.com/v1/chat/completions"
             chat = True
             model_name = 'nvidia/llama-3.1-nemotron-nano-vl-8b-v1'

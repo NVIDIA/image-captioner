@@ -1,0 +1,4 @@
+[submodule "dam"]
+	path = dam
+	url = https://github.com/NVlabs/describe-anything.git
+	active = true

@@ -18,9 +18,11 @@ import os
 
 # Third-party imports
 import gradio as gr
+import torch
 
 # Local imports
 from tagging_utils import *
+from DAM_utils import *
 
 # NVIDIA branding theme for the interface
 NVIDIA_GREEN = '#76b900'
@@ -92,7 +94,7 @@ def create_tagging_tab():
                     choices=["Long", "Short"],
                     label="Tag length:",
                     value="Short",
-                    info="long: 100 tokens, short: 25 tokens (supported for models via NVIDIA NIM)"
+                    info="long: 150 tokens, short: 75 tokens (supported for models via NVIDIA NIM)"
                 )
 
                 with gr.Row():
@@ -239,13 +241,23 @@ def create_tagging_tab():
         return chosen_dir
 
 
-def create_visualization_tab(chosen_dir_tagging):
+def create_visualization_tab(chosen_dir_tagging, chosen_dir_describe):
     """Create the 'Visualize Data' tab with all components and event handlers."""
     with gr.Tab("Visualize Data"):
         gr.Markdown("""
                     # Clustering
-                    Cluster the data from the Tag Dataset directory.
+                    Select which directory to visualize, then cluster the data.
                     """)
+        
+        # Directory source selection
+        dir_source = gr.Radio(
+            choices=["Tag Dataset directory", "Describe Anything directory"],
+            label="Choose directory source:",
+            value="Tag Dataset directory"
+        )
+        
+        # Display current directory path
+        current_dir_path = gr.Textbox(label="Current directory path", interactive=False)
         
         # Clustering controls
         image_or_text = gr.Radio(
@@ -259,9 +271,25 @@ def create_visualization_tab(chosen_dir_tagging):
 
         load_button = gr.Button("Load")
         
+        # Update directory source handler
+        def update_dir_source(source):
+            # This will be handled in the cluster_and_plot function
+            return f"Using directory from: {source}"
+            
+        dir_source.change(
+            fn=update_dir_source,
+            inputs=[dir_source],
+            outputs=[current_dir_path]
+        )
+        
+        # Modified cluster_and_plot function call
+        def cluster_with_dir_source(dir_source, chosen_dir_tagging, chosen_dir_describe, num, image_or_text):
+            chosen_dir = chosen_dir_tagging if dir_source == "Tag Dataset directory" else chosen_dir_describe
+            return cluster_and_plot(chosen_dir, num, image_or_text)
+            
         load_button.click(
-            fn=cluster_and_plot,
-            inputs=[chosen_dir_tagging, num, image_or_text],
+            fn=cluster_with_dir_source,
+            inputs=[dir_source, chosen_dir_tagging, chosen_dir_describe, num, image_or_text],
             outputs=plot
         )
 
@@ -294,9 +322,14 @@ def create_visualization_tab(chosen_dir_tagging):
                 chosen_tag_path = gr.Text(visible=False)
                 save_tag_changes_button = gr.Button("Save changes")
 
+        # Modified load_filtered_grid function call
+        def load_filtered_with_dir_source(dir_source, chosen_dir_tagging, chosen_dir_describe, cluster_number, keywords):
+            chosen_dir = chosen_dir_tagging if dir_source == "Tag Dataset directory" else chosen_dir_describe
+            return load_filtered_grid(cluster_number, keywords)
+            
         load_filtered_button.click(
-            fn=load_filtered_grid,
-            inputs=[cluster_number, keywords],
+            fn=load_filtered_with_dir_source,
+            inputs=[dir_source, chosen_dir_tagging, chosen_dir_describe, cluster_number, keywords],
             outputs=[filtered_gallery, cluster_image_paths_dropdown_options]
         )
 
@@ -340,13 +373,253 @@ def create_visualization_tab(chosen_dir_tagging):
                 )
             word_cloud = gr.Plot(label="Word Cloud", show_label=False)
 
+        # Modified gen_wordcloud function call
+        def gen_wordcloud_with_dir_source(dir_source, chosen_dir_tagging, chosen_dir_describe, cluster_number_wc):
+            chosen_dir = chosen_dir_tagging if dir_source == "Tag Dataset directory" else chosen_dir_describe
+            return gen_wordcloud(cluster_number_wc)
+            
         gen_wordcloud_button.click(
-            fn=gen_wordcloud,
-            inputs=[cluster_number_wc],
+            fn=gen_wordcloud_with_dir_source,
+            inputs=[dir_source, chosen_dir_tagging, chosen_dir_describe, cluster_number_wc],
             outputs=[word_cloud, dataframe]
         )
 
 
+def create_describe_anything_tab():
+    """Create the 'Describe Anything' tab with all components and event handlers."""
+    with gr.Tab("Describe Anything"):
+        # Directory selection components
+        with gr.Accordion("Select data directory"):
+            chosen_dir = gr.FileExplorer(
+                interactive=True,
+                root_dir=os.path.expanduser('~'),
+                label="Supported image formats: png, jpg, jpeg",
+                show_label=True,
+                ignore_glob='*/.*'
+            )
+
+        with gr.Row():
+            select_button = gr.Button("Select", scale=1)
+            path_box = gr.Textbox(label="Path", interactive=False, show_label=False, scale=4)
+
+        directory_gallery = gr.Gallery(label="Gallery View", rows=1, columns=10, height="4cm", show_label=False)
+
+        with gr.Row():
+            prev_button = gr.Button("Previous")
+            next_button = gr.Button("Next")
+            
+        with gr.Row():
+            # Left column - image input and controls
+            with gr.Column():
+                image_input = gr.ImageEditor(
+                    type="pil", 
+                    sources=[], 
+                    brush=gr.Brush(colors=["#000000"], color_mode="fixed", default_size=20),
+                    eraser=False,
+                    layers=False,
+                    transforms=[]
+                )
+                query = gr.Textbox(
+                    label="Prompt", 
+                    value="<image>\nDescribe the masked region in detail.", 
+                    visible=False
+                )
+                submit_btn = gr.Button("Describe", variant="primary")
+                
+                # Original local caption
+                original_caption = gr.Textbox(
+                    label="Existing caption",
+                    visible=True,
+                    interactive=False,
+                    show_copy_button=True
+                )
+
+                # Prefix/Suffix
+                with gr.Row():
+                    prefix = gr.Textbox(label="Prefix (optional)")
+                    suffix = gr.Textbox(label="Suffix (optional)")
+                
+                prefix_suffix_button = gr.Button("Add to all captions")
+
+            # Right column - output
+            with gr.Column():
+                output_image = gr.Image(label="Image with Region", visible=True)
+                description = gr.Textbox(label="Region Descriptions", visible=True, lines=7)
+                
+                # Caption generation section
+                with gr.Group():
+                    with gr.Row():
+                        api_key_input = gr.Textbox(
+                            label="API Key (Required for caption generation)", 
+                            interactive=True, 
+                            visible=True,
+                            type='password'
+                        )
+                        model_choice_caption = gr.Dropdown(
+                            choices=["GPT-4o (OpenAI)", "VILA (NVIDIA)"],
+                            label="Choose Model",
+                            value="VILA (NVIDIA)",
+                            interactive=True
+                        )
+                    generate_caption_btn = gr.Button("Generate Caption", variant="primary")
+                    combined_caption = gr.Textbox(
+                        label="Generated Caption", 
+                        visible=True, 
+                        lines=5, 
+                        interactive=True,
+                        show_copy_button=True
+                    )
+                    save_button = gr.Button("Save")
+                
+                # State variables for storing processed data
+                region_descriptions_state = gr.State([])
+                processed_image_state = gr.State(None)
+                image_path = gr.Text(label="Image Path", visible=False)
+                tag_path = gr.Text(label="Tag Path", visible=False)
+
+        # WebDataset export
+        web_data_button = gr.Button("Export data in WebDataset format")
+
+        # Find and Replace section
+        with gr.Accordion("Find and Replace", open=False):
+            with gr.Column():
+                with gr.Row():
+                    find_text = gr.Textbox(placeholder="Find", show_label=False)
+                    replace_text = gr.Textbox(placeholder="Replace with", show_label=False)
+                with gr.Row():
+                    find_button = gr.Button("Find")
+                    replace_button = gr.Button("Replace")
+                    replace_all_button = gr.Button("Replace All")
+                with gr.Column():
+                    find_and_replace_gallery = gr.Gallery(label="Gallery", show_label=False, rows=1, columns=10)
+                    sample_path = gr.Textbox(show_copy_button=True, label="path")
+                    sample_tag = gr.Textbox(show_label=False)
+                    with gr.Row():
+                        prev_find_button = gr.Button("Previous")
+                        next_find_button = gr.Button("Next")
+
+        # Connect event handlers
+        select_button.click(
+            fn=select_directory,
+            inputs=chosen_dir,
+            outputs=[image_input, image_path, original_caption, tag_path, description, path_box, directory_gallery],
+            api_name="select_describe"
+        )
+
+        next_button.click(
+            fn=show_next_image,
+            inputs=None,
+            outputs=[image_input, image_path, original_caption, tag_path, description],
+            api_name="next_describe"
+        )
+
+        prev_button.click(
+            fn=show_prev_image,
+            inputs=None,
+            outputs=[image_input, image_path, original_caption, tag_path, description],
+            api_name="prev_describe"
+        )
+
+        submit_btn.click(
+            fn=describe,
+            inputs=[image_input, query, image_path],
+            outputs=[output_image, description, region_descriptions_state, processed_image_state]
+        )
+        
+        generate_caption_btn.click(
+            fn=generate_caption,
+            inputs=[api_key_input, model_choice_caption, region_descriptions_state, processed_image_state],
+            outputs=combined_caption
+        )
+        
+        save_button.click(
+            fn=save_tag,
+            inputs=[combined_caption, tag_path],
+            outputs=[original_caption]
+        )
+        
+        prefix_suffix_button.click(
+            fn=add_pre_and_suffix,
+            inputs=[prefix, suffix, image_path],
+            outputs=original_caption
+        )
+        
+        web_data_button.click(
+            fn=create_webdataset,
+            inputs=[chosen_dir],
+            outputs=None
+        )
+        
+        # Connect find & replace event handlers
+        find_button.click(
+            fn=find_next_sample,
+            inputs=[find_text],
+            outputs=[sample_path, sample_tag, find_and_replace_gallery]
+        )
+
+        replace_button.click(
+            fn=replace_text_in_caption,
+            inputs=[find_text, sample_path, replace_text],
+            outputs=[sample_tag, find_and_replace_gallery]
+        )
+
+        replace_all_button.click(
+            fn=replace_in_all_captions,
+            inputs=[find_text, replace_text, sample_path],
+            outputs=[sample_tag, find_and_replace_gallery]
+        )
+
+        next_find_button.click(
+            fn=find_next_sample,
+            inputs=[find_text],
+            outputs=[sample_path, sample_tag, find_and_replace_gallery]
+        )
+
+        prev_find_button.click(
+            fn=find_prev_sample,
+            inputs=[find_text],
+            outputs=[sample_path, sample_tag, find_and_replace_gallery]
+        )
+
+        find_and_replace_gallery.select(
+            display_text, 
+            inputs=None, 
+            outputs=[sample_path, sample_tag]
+        )
+        
+        # Also connect directory_gallery to load image to image_input
+        directory_gallery.select(
+            fn=lambda index=None: load_image_for_describe(index),
+            outputs=[image_input, image_path, original_caption, tag_path]
+        )
+        
+        return chosen_dir
+
+
+def initialize_models():
+    """Initialize and set up the models required for the Describe Anything tab."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # Load SAM model and processor
+    sam_model = SamModel.from_pretrained("facebook/sam-vit-huge").to(device)
+    sam_processor = SamProcessor.from_pretrained("facebook/sam-vit-huge")
+
+    # Disable torch initialization to avoid reinitialization
+    disable_torch_init()
+
+    # Initialize DAM model
+    dam = DescribeAnythingModel(
+        model_path="nvidia/DAM-3B", 
+        conv_mode="v1", 
+        prompt_mode="full+focal_crop", 
+    )
+
+    # Make models accessible globally via the describe_anything module
+    import DAM_utils as DAM_utils
+    DAM_utils.sam_model = sam_model
+    DAM_utils.sam_processor = sam_processor
+    DAM_utils.dam = dam
+    DAM_utils.device = device
 
 
 def page():
@@ -355,11 +628,15 @@ def page():
     :return: the configured Gradio interface
     """
     with gr.Blocks(theme=theme) as demo:
-        # Create the two main tabs
+        # Create the three main tabs
         chosen_dir_tagging = create_tagging_tab()
+        chosen_dir_describe = create_describe_anything_tab()
         
-        # Pass the tagging directory to the visualization tab
-        create_visualization_tab(chosen_dir_tagging)
+        # Pass both directories to the visualization tab
+        create_visualization_tab(chosen_dir_tagging, chosen_dir_describe)
+
+    # Initialize the models for the Describe Anything tab
+    initialize_models()
 
     return demo
 

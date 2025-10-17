@@ -3,11 +3,13 @@
 ## Overview
 This image captioning and visualization tool leverages state-of-the-art generative AI image-to-text models to automatically generate, edit, and manage captions and tags for image datasets. The tool provides a unified interface for accessing multiple vision-language models hosted by leading inference services, including [NVIDIA NIM](https://www.nvidia.com/en-us/ai/) and [Hugging Face](https://huggingface.co/), enabling users to generate high-quality image descriptions with a single click.
 
-The tool consists of two main modules:
+The tool consists of three main modules:
 
-**Module 1: Standard Tagging** - Generate and edit image captions using various vision-language models (Kosmos-2, Llama 3.2 Vision, Gemma 3, etc.) with customizable parameters and batch processing capabilities.
+**Module 1: Standard Captioning** - Generate and edit image captions using various vision-language models (Kosmos-2, Llama 3.2 Vision, Gemma 3, etc.) with customizable parameters and batch processing capabilities.
 
-**Module 2: Data Visualization & Analytics** - Comprehensive clustering and analysis tools that help users explore your image-tag datasets through interactive visualizations, keyword filtering, and word cloud generation to identify patterns and themes.
+**Module 2: MOSAIC - Describe Anything** - Advanced localized captioning that allows users to select specific regions within images and generate detailed descriptions for those areas, perfect for datasets requiring precise object or scene descriptions for downstream applications.
+
+**Module 2: Data Visualization & Analytics** - Comprehensive clustering and analysis tools that help users explore your image-caption datasets through interactive visualizations, keyword filtering, and word cloud generation to identify patterns and themes.
 
 Beyond automated captioning, the tool includes powerful data management features such as bulk editing, find/replace operations, WebDataset export functionality, and interactive dataset exploration capabilities. 
 
@@ -15,14 +17,21 @@ Beyond automated captioning, the tool includes powerful data management features
 
 ### Prerequisites
 - Python 3.10 or higher
-- Valid API credentials for NVIDIA NIM and/or Hugging Face (depending on your preferred models).
+- Valid API credentials for NVIDIA NIM and/or Hugging Face (depending on your preferred models)
+- **NVIDIA GPU required for Module 2**
 
 ### Installation Steps
 
-1. **Clone the repository**
+1. **Clone the repository with submodules**
+   
+   **Option A: Clone with submodules flag**
    ```bash
-   git clone <URL>
+   git clone --recurse-submodules <URL>
    cd image-captioner
+   ```
+   **If the dam folder appears empty after cloning:**
+   ```bash
+   git submodule update --init --recursive
    ```
 
 2. **Set up a virtual environment**
@@ -51,7 +60,11 @@ For experimentation, a sample image dataset can be downloaded from [here](https:
 * [Supported Models and Advanced Parameters](#supported-models)
 * [Adding a new model](#adding-support-for-a-new-model)
 
-[Module 2: Data Visualization & Analytics](#module-2-data-visualization--analytics)
+[Module 2: Tagging via Describe Anything](#module-2-tagging-via-describe-anything)
+* [Pipeline](#pipeline-1)
+* [API Requirements](#api-requirements)
+
+[Module 3: Data Visualization & Analytics](#module-3-data-visualization--analytics)
 * [Overview](#overview)
 * [Visualizing your dataset](#steps)
 ## Module 1: Tagging
@@ -122,7 +135,33 @@ To add an **image-to-text** model available on the currently supported inference
 2. In the ```gen_tag_from_model``` method, add an ```elif``` condition under the corresponding host, along with the model's URL and other required parameters.  
 3. Re-run the gradio_interface.py file to make calls to this newly supported model via the user interface.
 
-## Module 2: Data Visualization & Analytics
+## Module 2: MOSAIC - Tagging via Describe Anything
+
+The Describe Anything tab provides advanced localized captioning capabilities for generating detailed descriptions of specific regions within images. This module extends the core Describe Anything pipeline to support multi-region descriptions and comprehensive caption generation.
+
+**This module replicates the core functionality of Module 1 with a new caption generation approach.**
+
+### Pipeline
+
+1. Choosing a directory
+Follow the same steps as in the tagging tab.
+
+2. Selecting regions for description
+
+Click and drag on the image to select regions of interest. Multiple regions can be selected for comprehensive description generation.
+
+3. Generating localized descriptions
+
+For each selected region, detailed descriptions can be generated using the Describe Anything model. The model provides context-aware captions that describe the specific content within the selected areas.
+
+4. Editing and saving descriptions
+
+Generated descriptions can be edited and saved. The system maintains the relationship between image regions and their corresponding descriptions.
+
+### API Requirements
+- An API token is required from either [OpenAI](https://platform.openai.com/) or [build.nvidia.com](https://build.nvidia.com/)
+
+## Module 3: Data Visualization & Analytics
 
 After finalizing image-tag pairs, this module can be accessed by clicking on **Visualize Data**. It provides comprehensive clustering and analysis tools to explore your image-tag datasets through interactive visualizations, keyword filtering, and word cloud generation.
 
@@ -159,4 +198,6 @@ The clustering implementation uses the following components:
 - **Analyze themes**: View the most prominent terms and their frequencies in the cluster
 - **Review data**: Access a detailed list of tags with their occurrence counts 
 
- 
+## Acknowledgements
+
+This project's **MOSAIC - Describe Anything** module builds upon the core Describe Anything pipeline from the [Describe Anything repository](https://github.com/NVlabs/describe-anything) by **NVIDIA**, **UC Berkeley**, and **UCSF**. The original pipeline provides the foundation for detailed localized captioning, which we have extended to support multi-region descriptions and comprehensive caption generation for our image tagging tool. 
