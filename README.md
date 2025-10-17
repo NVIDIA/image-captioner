@@ -18,7 +18,7 @@ Beyond automated captioning, the tool includes powerful data management features
 ### Prerequisites
 - Python 3.10 or higher
 - Valid API credentials for NVIDIA NIM and/or Hugging Face (depending on your preferred models)
-- **NVIDIA GPU required for Module 2**
+- NVIDIA GPU required for Module 2
 
 ### Installation Steps
 
