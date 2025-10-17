@@ -7,7 +7,7 @@ The tool consists of three main modules:
 
 **Module 1: Standard Captioning** - Generate and edit image captions using various vision-language models (Kosmos-2, Llama 3.2 Vision, Gemma 3, etc.) with customizable parameters and batch processing capabilities.
 
-**Module 2: MOSAIC - Describe Anything** - Advanced localized captioning that allows users to select specific regions within images and generate detailed descriptions for those areas, perfect for datasets requiring precise object or scene descriptions for downstream applications.
+**Module 2: Describe Anything** - Advanced localized captioning that allows users to select specific regions within images and generate detailed descriptions for those areas, perfect for datasets requiring precise object or scene descriptions for downstream applications.
 
 **Module 2: Data Visualization & Analytics** - Comprehensive clustering and analysis tools that help users explore your image-caption datasets through interactive visualizations, keyword filtering, and word cloud generation to identify patterns and themes.
 
