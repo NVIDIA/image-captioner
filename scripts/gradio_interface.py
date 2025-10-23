@@ -456,7 +456,7 @@ def create_describe_anything_tab():
                             type='password'
                         )
                         model_choice_caption = gr.Dropdown(
-                            choices=["GPT-4o (OpenAI)", "VILA (NVIDIA)"],
+                            choices=["GPT-4o (OpenAI)", "VILA (NVIDIA)", "Gemma 3 (Hugging Face)"],
                             label="Choose Model",
                             value="VILA (NVIDIA)",
                             interactive=True

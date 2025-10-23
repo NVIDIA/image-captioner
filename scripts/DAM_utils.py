@@ -30,6 +30,7 @@ from scipy import ndimage
 import requests
 import base64
 import io
+from huggingface_hub import InferenceClient
 
 MODEL_PATH = "nvidia/DAM-3B"
 
@@ -92,7 +93,7 @@ def combine_descriptions_with_llm(descriptions, api_key, model_choice, image=Non
     
     descriptions_text = "\n".join(descriptions)
     
-    user_prompt = f"""Please weave these regional descriptions into a cohesive, flowing description:
+    user_prompt = f"""Weave these regional descriptions into a cohesive, flowing description:
 
 {descriptions_text}
 
@@ -101,7 +102,7 @@ Use the image as context, and focus primarily on the user-selected regions as th
 Keep your response under 3 sentences while making sure the narrative flows naturally but is completely factual.
 
 Avoid: naming specific people/animals, interpreting emotions, or adding fictional elements.
-Do not use the word "region" in your response.
+Do not use the word "region" in your response. Output ONLY the description itself with no introduction or meta-commentary
 """
     
     try:
@@ -161,6 +162,44 @@ Do not use the word "region" in your response.
             }
             
             url = 'https://ai.api.nvidia.com/v1/vlm/nvidia/vila'
+            
+        elif model_choice == "Gemma 3 (Hugging Face)":
+            client = InferenceClient(
+                provider="auto",
+                api_key=api_key.strip(),
+            )
+            
+            content = []
+            content.append({"type": "text", "text": user_prompt})
+            
+            if image:
+                # Encode image to base64
+                buffered = io.BytesIO()
+                image.save(buffered, format="JPEG", quality=85)
+                img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{img_str}"}
+                })
+            
+            try:
+                response = client.chat.completions.create(
+                    model="google/gemma-3-27b-it",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": content
+                        }
+                    ],
+                )
+                
+                if not response:
+                    return "Error generating combined caption: Unable to get response from Hugging Face API. Please check your API key and try again."
+                
+                return response.choices[0].message.content
+            except Exception as e:
+                print(f"Error calling Hugging Face API: {e}")
+                return f"Error generating combined caption: {str(e)}"
             
         else:
             return f"Unsupported model choice: {model_choice}"
